@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Weather Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f7f9fc;
+      color: #222;
+    }
+    .card {
+      max-width: 560px;
+      background: white;
+      padding: 24px;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #cfd8e3;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    #result {
+      margin-top: 12px;
+      padding: 16px;
+      background: #f3f6fb;
+      border-radius: 10px;
+      min-height: 70px;
+      line-height: 1.7;
+    }
+    .muted {
+      color: #667085;
+    }
+    .error {
+      color: #b42318;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>현재 기온 조회</h2>
+    <p class="muted">지역명을 입력하면 Host App이 MCP Tool을 호출해 현재 날씨와 기온을 가져옵니다.</p>
+
+    <div class="row">
+      <input id="location" type="text" placeholder="지역 입력 (예: 서울)" />
+      <button onclick="getWeather()">조회</button>
+    </div>
+
+    <div id="result">아직 조회하지 않았습니다.</div>
+  </div>
+
+  <script>
+    async function getWeather() {
+      const locationEl = document.getElementById("location");
+      const resultEl = document.getElementById("result");
+      const location = locationEl.value.trim();
+
+      if (!location) {
+        alert("지역명을 입력하세요.");
+        locationEl.focus();
+        return;
+      }
+
+      resultEl.innerHTML = "조회 중입니다...";
+
+      try {
+        const resp = await fetch(`/weather?location=${encodeURIComponent(location)}`);
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          const detail = data.detail || `서버 오류: ${resp.status}`;
+          resultEl.innerHTML = `<span class="error">${detail}</span>`;
+          return;
+        }
+
+        const result = data.result || {};
+        const weather = result.weather ?? "정보 없음";
+        const temp = result.temp ?? "정보 없음";
+        const error = result.error;
+
+        if (error) {
+          resultEl.innerHTML =
+            `<span class="error"><b>지역:</b> ${result.location ?? location}<br>` +
+            `<b>오류:</b> ${error}</span>`;
+          return;
+        }
+
+        resultEl.innerHTML =
+          `<b>지역:</b> ${result.location ?? location}<br>` +
+          `<b>날씨:</b> ${weather}<br>` +
+          `<b>현재 기온:</b> ${temp}°C`;
+      } catch (err) {
+        resultEl.innerHTML =
+          `<span class="error">요청 실패: ${err.message}<br>` +
+          `FastAPI Host App이 실행 중인지 확인하세요.</span>`;
+      }
+    }
+
+    document.getElementById("location").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        getWeather();
+      }
+    });
+  </script>
+</body>
+</html>
