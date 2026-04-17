@@ -8,7 +8,7 @@ pip install mcp fastapi uvicorn openai requests
 서버 실행:
 
 Bash
-python3 client_gateway.py
+> python client_gateway.py
 UI 열기: 브라우저에서 index.html 파일을 열어 테스트합니다.
 
 주의: client_gateway.py 내의 server_params에서 weather_server.py의 경로가 정확해야 합니다. 같은 폴더에 두시면 됩니다!
