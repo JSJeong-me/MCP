@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Assistant WebSocket Client</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --border: #d9e2ec;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #15803d;
+      --error: #b42318;
+      --user-bg: #e8f0ff;
+      --server-bg: #f3f4f6;
+      --shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 1px solid rgba(217, 226, 236, 0.8);
+    }
+
+    .header {
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .title-wrap h1 {
+      margin: 0 0 6px 0;
+      font-size: 24px;
+    }
+
+    .title-wrap p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--muted);
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #9ca3af;
+    }
+
+    .dot.connected { background: var(--success); }
+    .dot.disconnected { background: var(--error); }
+
+    .controls {
+      padding: 16px 24px 8px;
+      border-bottom: 1px solid var(--border);
+      background: #fbfdff;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .quick-actions button,
+    .toolbar button,
+    .input-area button {
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .quick-actions button {
+      padding: 8px 12px;
+      background: #eef4ff;
+      color: #1e3a8a;
+    }
+
+    .quick-actions button:hover {
+      background: #dbeafe;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .ws-url {
+      color: var(--muted);
+      font-size: 13px;
+      word-break: break-all;
+    }
+
+    .toolbar button {
+      padding: 8px 12px;
+      background: #eef2f7;
+      color: #374151;
+    }
+
+    .toolbar button:hover {
+      background: #e5e7eb;
+    }
+
+    .messages {
+      height: 420px;
+      overflow-y: auto;
+      padding: 20px 24px;
+      background: #fcfdff;
+    }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      margin-top: 120px;
+      font-size: 14px;
+    }
+
+    .message {
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .message.user { align-items: flex-end; }
+    .message.server { align-items: flex-start; }
+
+    .bubble {
+      max-width: 80%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid var(--border);
+    }
+
+    .user .bubble {
+      background: var(--user-bg);
+      border-top-right-radius: 6px;
+    }
+
+    .server .bubble {
+      background: var(--server-bg);
+      border-top-left-radius: 6px;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+
+    .input-area {
+      padding: 16px 24px 24px;
+      border-top: 1px solid var(--border);
+      background: white;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    textarea {
+      flex: 1;
+      min-height: 64px;
+      max-height: 160px;
+      resize: vertical;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 15px;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .input-area button {
+      padding: 12px 18px;
+      background: var(--primary);
+      color: white;
+      min-width: 90px;
+      height: 46px;
+    }
+
+    .input-area button:hover {
+      background: var(--primary-hover);
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    code.inline {
+      background: #eef2ff;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .messages {
+        height: 360px;
+        padding: 16px;
+      }
+
+      .header, .controls, .input-area {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .bubble {
+        max-width: 92%;
+      }
+
+      .input-row {
+        flex-direction: column;
+      }
+
+      .input-area button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div class="title-wrap">
+          <h1>Weather Assistant</h1>
+          <p>WebSocket 기반 실습용 클라이언트 UI</p>
+        </div>
+        <div class="status">
+          <span id="statusDot" class="dot disconnected"></span>
+          <span id="statusText">연결 중...</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="quick-actions">
+          <button onclick="fillExample('서울 날씨 알려줘')">서울 날씨</button>
+          <button onclick="fillExample('부산 날씨 알려줘')">부산 날씨</button>
+          <button onclick="fillExample('제주 현재 기온 알려줘')">제주 현재 기온</button>
+          <button onclick="fillExample('대전 날씨와 온도 알려줘')">대전 날씨/온도</button>
+        </div>
+        <div class="toolbar">
+          <div class="ws-url">WebSocket: <code class="inline" id="wsUrlText"></code></div>
+          <div>
+            <button onclick="clearMessages()">대화 지우기</button>
+            <button onclick="reconnect()">재연결</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="messages" class="messages">
+        <div id="emptyState" class="empty">
+          아직 메시지가 없습니다.<br />
+          아래 입력창에 질문을 입력해 보세요.
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-row">
+          <textarea id="msg" placeholder="예: 서울 날씨 알려줘"></textarea>
+          <button onclick="sendMsg()">전송</button>
+        </div>
+        <div class="hint">
+          Enter로 전송, Shift+Enter로 줄바꿈. 서버 응답이 JSON이면 보기 좋게 정리해서 표시합니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WS_URL = "ws://localhost:8000/ws";
+    let ws = null;
+
+    document.getElementById("wsUrlText").textContent = WS_URL;
+
+    function nowTime() {
+      return new Date().toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function setStatus(connected, text) {
+      const dot = document.getElementById("statusDot");
+      const statusText = document.getElementById("statusText");
+      dot.className = "dot " + (connected ? "connected" : "disconnected");
+      statusText.textContent = text;
+    }
+
+    function hideEmptyState() {
+      const empty = document.getElementById("emptyState");
+      if (empty) empty.style.display = "none";
+    }
+
+    function scrollToBottom() {
+      const messages = document.getElementById("messages");
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function formatServerMessage(raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        return JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        return raw;
+      }
+    }
+
+    function addMessage(role, text) {
+      hideEmptyState();
+      const messages = document.getElementById("messages");
+      const wrapper = document.createElement("div");
+      wrapper.className = "message " + role;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = (role === "user" ? "사용자" : "서버") + " · " + nowTime();
+
+      wrapper.appendChild(bubble);
+      wrapper.appendChild(meta);
+      messages.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    function connectWebSocket() {
+      setStatus(false, "연결 중...");
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = function() {
+        setStatus(true, "연결됨");
+      };
+
+      ws.onmessage = function(evt) {
+        addMessage("server", formatServerMessage(evt.data));
+      };
+
+      ws.onerror = function() {
+        setStatus(false, "오류 발생");
+      };
+
+      ws.onclose = function() {
+        setStatus(false, "연결 끊김");
+      };
+    }
+
+    function reconnect() {
+      try {
+        if (ws) ws.close();
+      } catch (e) {}
+      connectWebSocket();
+    }
+
+    function fillExample(text) {
+      const input = document.getElementById("msg");
+      input.value = text;
+      input.focus();
+    }
+
+    function clearMessages() {
+      const messages = document.getElementById("messages");
+      messages.innerHTML = '<div id="emptyState" class="empty">아직 메시지가 없습니다.<br />아래 입력창에 질문을 입력해 보세요.</div>';
+    }
+
+    function sendMsg() {
+      const input = document.getElementById("msg");
+      const msg = input.value.trim();
+
+      if (!msg) {
+        alert("메시지를 입력하세요.");
+        input.focus();
+        return;
+      }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert("WebSocket 서버에 연결되어 있지 않습니다.");
+        return;
+      }
+
+      addMessage("user", msg);
+      ws.send(JSON.stringify({ message: msg }));
+      input.value = "";
+      input.focus();
+    }
+
+    document.getElementById("msg").addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMsg();
+      }
+    });
+
+    connectWebSocket();
+  </script>
+</body>
+</html>
