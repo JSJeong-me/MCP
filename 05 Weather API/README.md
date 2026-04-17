@@ -2,7 +2,7 @@
 패키지 설치: WSL 터미널에서 아래 명령어를 실행합니다.
 
 Bash
-pip install mcp fastapi uvicorn openai requests
+> pip install mcp fastapi uvicorn openai requests
 파일 작성: 위 코드들을 각각 weather_server.py, client_gateway.py, index.html로 저장합니다.
 
 서버 실행:
